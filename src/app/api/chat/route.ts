@@ -15,14 +15,14 @@ const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-const modelId = process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini";
+const modelId = process.env.OPENROUTER_MODEL!;
 
 const tools = {
-  search: meilisearchSearch({
+  searchMovies: meilisearchSearch({
     host: process.env.MEILISEARCH_HOST!,
     apiKey: process.env.MEILISEARCH_API_KEY,
-    indexUid: process.env.MEILISEARCH_INDEX ?? "movies",
-    description: "Search movies by title or synopsis",
+    indexUid: process.env.MEILISEARCH_INDEX!,
+    description: "Search movies by title or description",
   }),
 };
 
@@ -37,8 +37,13 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openrouter.chat(modelId),
-    system:
-      "You are a movie assistant. Use the search tool to find films by title or synopsis, then recommend and summarize what you find. Format replies with clear Markdown: use blank lines between paragraphs, numbered or bulleted lists on their own lines, and **bold** for titles.",
+    system:`
+      You are a movie assistant. Your task is to recommend streaming platforms to watch movies.
+
+      Always use your tools to search movies and find streaming platforms to watch them.
+
+      Only offer follow-up actions that match your tools capabilities. Do not offer any follow-up actions unless they make sense.
+      `,
     messages: await convertToModelMessages(messages),
     tools,
     stopWhen: stepCountIs(5),
