@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { MarkdownClient } from "@comark/react";
 import breaks from "@comark/react/plugins/breaks";
 import { DefaultChatTransport } from "ai";
-import { SearchIcon, SendIcon } from "lucide-react";
+import { ChevronDownIcon, SearchIcon, SendIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/message-scroller";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 const transport = new DefaultChatTransport({ api: "/api/chat" });
 
@@ -30,16 +31,109 @@ const markdownComponents = {
   img: () => null,
 };
 
-function hitCount(output: unknown) {
-  if (!output || typeof output !== "object") return 0;
+type MovieHit = {
+  id?: string | number;
+  title: string;
+  year?: string;
+};
+
+function releaseYear(releaseDate: unknown) {
+  if (typeof releaseDate !== "string" || releaseDate.length < 4) {
+    return undefined;
+  }
+  const year = releaseDate.slice(0, 4);
+  return /^\d{4}$/.test(year) ? year : undefined;
+}
+
+function movieHits(output: unknown): MovieHit[] {
+  if (!output || typeof output !== "object") return [];
   const hits = (output as { hits?: unknown }).hits;
-  return Array.isArray(hits) ? hits.length : 0;
+  if (!Array.isArray(hits)) return [];
+
+  return hits.flatMap((hit) => {
+    if (!hit || typeof hit !== "object") return [];
+    const {
+      id,
+      title,
+      release_date: releaseDate,
+    } = hit as {
+      id?: unknown;
+      title?: unknown;
+      release_date?: unknown;
+    };
+    if (typeof title !== "string" || title.length === 0) return [];
+
+    return [
+      {
+        id: typeof id === "string" || typeof id === "number" ? id : undefined,
+        title,
+        year: releaseYear(releaseDate),
+      },
+    ];
+  });
 }
 
 function toolQuery(input: unknown) {
   if (!input || typeof input !== "object") return undefined;
   const q = (input as { q?: unknown }).q;
   return typeof q === "string" && q.length > 0 ? q : undefined;
+}
+
+function SearchMoviesMarker({ q, output }: { q?: string; output: unknown }) {
+  const [open, setOpen] = useState(false);
+  const hits = movieHits(output);
+
+  return (
+    <div className="w-full min-w-0">
+      <Marker
+        render={
+          <button
+            type="button"
+            className="cursor-pointer p-0"
+            onClick={() => setOpen((value) => !value)}
+          />
+        }
+        aria-expanded={open}
+      >
+        <MarkerIcon>
+          <SearchIcon />
+        </MarkerIcon>
+        <MarkerContent>
+          {hits.length} results found
+          {q ? ` for \u201c${q}\u201d` : ""}
+        </MarkerContent>
+        <ChevronDownIcon
+          className={cn(
+            "ml-auto size-4 shrink-0 transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </Marker>
+      {open ? (
+        <ol className="border-border/60 text-muted-foreground mt-1 w-full min-w-0 space-y-0.5 rounded-md border p-2 text-xs leading-snug">
+          {hits.map((hit, index) => (
+            <li key={hit.id ?? hit.title} className="flex min-w-0 gap-2">
+              <span className="w-6 shrink-0 text-right whitespace-nowrap tabular-nums">
+                {index + 1}.
+              </span>
+              <span className="min-w-0 truncate">
+                <span className="font-medium">{hit.title}</span>
+                {hit.year ? `, ${hit.year}` : null}
+                {hit.id != null ? (
+                  <>
+                    {" "}
+                    <code className="bg-muted rounded px-1 py-px font-mono text-[0.65rem]">
+                      ID {hit.id}
+                    </code>
+                  </>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </div>
+  );
 }
 
 export default function Home() {
@@ -84,10 +178,7 @@ export default function Home() {
                 const isUser = message.role === "user";
 
                 return (
-                  <MessageScrollerItem
-                    key={message.id}
-                    messageId={message.id}
-                  >
+                  <MessageScrollerItem key={message.id} messageId={message.id}>
                     <Message align={isUser ? "end" : "start"}>
                       <MessageContent>
                         {isUser ? (
@@ -136,17 +227,12 @@ export default function Home() {
                               const callId = part.toolCallId;
 
                               if (part.state === "output-available") {
-                                const n = hitCount(part.output);
                                 return (
-                                  <Marker key={callId}>
-                                    <MarkerIcon>
-                                      <SearchIcon />
-                                    </MarkerIcon>
-                                    <MarkerContent>
-                                      {n} results found
-                                      {q ? ` for \u201c${q}\u201d` : ""}
-                                    </MarkerContent>
-                                  </Marker>
+                                  <SearchMoviesMarker
+                                    key={callId}
+                                    q={q}
+                                    output={part.output}
+                                  />
                                 );
                               }
 
@@ -203,7 +289,7 @@ export default function Home() {
 
       <div className="mx-auto w-full max-w-xl shrink-0 px-4 pb-4">
         <form
-          className="flex items-end gap-2 rounded-3xl border border-border bg-background p-2 shadow-sm"
+          className="border-border bg-background flex items-end gap-2 rounded-3xl border p-2 shadow-sm"
           onSubmit={handleSubmit}
         >
           <Textarea
