@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { SendIcon } from "lucide-react";
+import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Message, MessageContent } from "@/components/ui/message";
@@ -15,37 +17,19 @@ import {
 } from "@/components/ui/message-scroller";
 import { Textarea } from "@/components/ui/textarea";
 
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
-
-const initialMessages: ChatMessage[] = [
-  {
-    id: "1",
-    role: "assistant",
-    content: "Hi! How can I help you today?",
-  },
-  {
-    id: "2",
-    role: "user",
-    content: "Tell me about Meilisearch.",
-  },
-];
+const transport = new DefaultChatTransport({ api: "/api/chat" });
 
 export default function Home() {
-  const [messages, setMessages] = useState(initialMessages);
+  const { messages, sendMessage, status } = useChat({ transport });
   const [input, setInput] = useState("");
+
+  const ready = status === "ready";
 
   function send() {
     const text = input.trim();
-    if (!text) return;
+    if (!text || !ready) return;
 
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: "user", content: text },
-    ]);
+    sendMessage({ text });
     setInput("");
   }
 
@@ -67,7 +51,13 @@ export default function Home() {
                   scrollAnchor={message.role === "user"}
                 >
                   <Message align={message.role === "user" ? "end" : "start"}>
-                    <MessageContent>{message.content}</MessageContent>
+                    <MessageContent>
+                      {message.parts.map((part, index) =>
+                        part.type === "text" ? (
+                          <span key={index}>{part.text}</span>
+                        ) : null,
+                      )}
+                    </MessageContent>
                   </Message>
                 </MessageScrollerItem>
               ))}
@@ -80,8 +70,9 @@ export default function Home() {
         <Textarea
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Type a message..."
+          placeholder="Ask about movies..."
           rows={1}
+          disabled={!ready}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
@@ -89,7 +80,7 @@ export default function Home() {
             }
           }}
         />
-        <Button type="submit" size="icon" disabled={!input.trim()}>
+        <Button type="submit" size="icon" disabled={!ready || !input.trim()}>
           <SendIcon />
           <span className="sr-only">Send</span>
         </Button>
