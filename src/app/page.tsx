@@ -4,11 +4,12 @@ import { useChat } from "@ai-sdk/react";
 import { MarkdownClient } from "@comark/react";
 import breaks from "@comark/react/plugins/breaks";
 import { DefaultChatTransport } from "ai";
-import { SendIcon } from "lucide-react";
+import { SearchIcon, SendIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
+import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { Message, MessageContent } from "@/components/ui/message";
 import {
   MessageScroller,
@@ -29,12 +30,32 @@ const markdownComponents = {
   img: () => null,
 };
 
+function hitCount(output: unknown) {
+  if (!output || typeof output !== "object") return 0;
+  const hits = (output as { hits?: unknown }).hits;
+  return Array.isArray(hits) ? hits.length : 0;
+}
+
+function toolQuery(input: unknown) {
+  if (!input || typeof input !== "object") return undefined;
+  const q = (input as { q?: unknown }).q;
+  return typeof q === "string" && q.length > 0 ? q : undefined;
+}
+
 export default function Home() {
   const { messages, sendMessage, status } = useChat({ transport });
   const [input, setInput] = useState("");
 
   const ready = status === "ready";
   const generating = status === "submitted" || status === "streaming";
+
+  const lastMessage = messages[messages.length - 1];
+  const lastAssistantHasText =
+    lastMessage?.role === "assistant" &&
+    lastMessage.parts.some(
+      (part) => part.type === "text" && part.text.trim().length > 0,
+    );
+  const showThinking = generating && !lastAssistantHasText;
 
   function send() {
     const text = input.trim();
@@ -66,19 +87,15 @@ export default function Home() {
                   <MessageScrollerItem
                     key={message.id}
                     messageId={message.id}
-                    scrollAnchor={isUser}
                   >
                     <Message align={isUser ? "end" : "start"}>
                       <MessageContent>
-                        <Bubble
-                          variant={isUser ? "default" : "secondary"}
-                          align={isUser ? "end" : "start"}
-                        >
-                          <BubbleContent>
-                            {message.parts.map((part, index) => {
-                              if (part.type !== "text") return null;
+                        {isUser ? (
+                          <Bubble variant="default" align="end">
+                            <BubbleContent>
+                              {message.parts.map((part, index) => {
+                                if (part.type !== "text") return null;
 
-                              if (isUser) {
                                 return (
                                   <span
                                     key={index}
@@ -87,26 +104,97 @@ export default function Home() {
                                     {part.text}
                                   </span>
                                 );
+                              })}
+                            </BubbleContent>
+                          </Bubble>
+                        ) : (
+                          message.parts.map((part, index) => {
+                            if (part.type === "text") {
+                              if (!part.text.trim()) return null;
+
+                              return (
+                                <Bubble
+                                  key={index}
+                                  variant="secondary"
+                                  align="start"
+                                >
+                                  <BubbleContent>
+                                    <MarkdownClient
+                                      value={part.text}
+                                      plugins={markdownPlugins}
+                                      components={markdownComponents}
+                                      streaming={streaming}
+                                      className="[&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                                    />
+                                  </BubbleContent>
+                                </Bubble>
+                              );
+                            }
+
+                            if (part.type === "tool-searchMovies") {
+                              const q = toolQuery(part.input);
+                              const callId = part.toolCallId;
+
+                              if (part.state === "output-available") {
+                                const n = hitCount(part.output);
+                                return (
+                                  <Marker key={callId}>
+                                    <MarkerIcon>
+                                      <SearchIcon />
+                                    </MarkerIcon>
+                                    <MarkerContent>
+                                      {n} results found
+                                      {q ? ` for \u201c${q}\u201d` : ""}
+                                    </MarkerContent>
+                                  </Marker>
+                                );
+                              }
+
+                              if (part.state === "output-error") {
+                                return (
+                                  <Marker key={callId} role="status">
+                                    <MarkerIcon>
+                                      <SearchIcon />
+                                    </MarkerIcon>
+                                    <MarkerContent>
+                                      Search failed
+                                      {q ? ` for \u201c${q}\u201d` : ""}
+                                    </MarkerContent>
+                                  </Marker>
+                                );
                               }
 
                               return (
-                                <MarkdownClient
-                                  key={index}
-                                  value={part.text}
-                                  plugins={markdownPlugins}
-                                  components={markdownComponents}
-                                  streaming={streaming}
-                                  className="[&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-                                />
+                                <Marker key={callId} role="status">
+                                  <MarkerIcon>
+                                    <SearchIcon />
+                                  </MarkerIcon>
+                                  <MarkerContent className="shimmer">
+                                    {q
+                                      ? `Searching for \u201c${q}\u201d...`
+                                      : "Searching..."}
+                                  </MarkerContent>
+                                </Marker>
                               );
-                            })}
-                          </BubbleContent>
-                        </Bubble>
+                            }
+
+                            return null;
+                          })
+                        )}
                       </MessageContent>
                     </Message>
                   </MessageScrollerItem>
                 );
               })}
+
+              {showThinking ? (
+                <Marker role="status">
+                  <MarkerIcon>
+                    <Spinner />
+                  </MarkerIcon>
+                  <MarkerContent className="shimmer">Thinking...</MarkerContent>
+                </Marker>
+              ) : null}
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <MessageScrollerButton />
@@ -132,25 +220,15 @@ export default function Home() {
               }
             }}
           />
-          {generating ? (
-            <div
-              className="flex size-9 shrink-0 items-center justify-center"
-              aria-live="polite"
-            >
-              <Spinner />
-              <span className="sr-only">Generating</span>
-            </div>
-          ) : (
-            <Button
-              type="submit"
-              size="icon"
-              className="size-9 shrink-0 rounded-full"
-              disabled={!ready || !input.trim()}
-            >
-              <SendIcon />
-              <span className="sr-only">Send</span>
-            </Button>
-          )}
+          <Button
+            type="submit"
+            size="icon"
+            className="size-9 shrink-0 rounded-full"
+            disabled={!ready || !input.trim()}
+          >
+            <SendIcon />
+            <span className="sr-only">Send</span>
+          </Button>
         </form>
       </div>
     </div>

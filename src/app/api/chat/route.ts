@@ -23,6 +23,12 @@ const tools = {
     apiKey: process.env.MEILISEARCH_API_KEY,
     indexUid: process.env.MEILISEARCH_INDEX!,
     description: "Search movies by title or description",
+    searchParams: {
+      // hybrid: {
+      //   embedder: 'default',
+      //   semanticRatio: 0.5
+      // }
+    }
   }),
 };
 
