@@ -1,4 +1,7 @@
-import { meilisearchSearch } from "@meilisearch/ai-sdk";
+import {
+  meilisearchSearch,
+  meilisearchSearchSimilar,
+} from "@meilisearch/ai-sdk";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   convertToModelMessages,
@@ -17,17 +20,29 @@ const openrouter = createOpenRouter({
 
 const modelId = process.env.OPENROUTER_MODEL!;
 
+const meilisearch = {
+  host: process.env.MEILISEARCH_HOST!,
+  apiKey: process.env.MEILISEARCH_API_KEY,
+  indexUid: process.env.MEILISEARCH_INDEX!,
+};
+
 const tools = {
   searchMovies: meilisearchSearch({
-    host: process.env.MEILISEARCH_HOST!,
-    apiKey: process.env.MEILISEARCH_API_KEY,
-    indexUid: process.env.MEILISEARCH_INDEX!,
+    ...meilisearch,
     description: "Search movies by title or description",
     searchParams: {
       hybrid: {
         embedder: "small",
         semanticRatio: 0.5,
       },
+    },
+  }),
+  searchSimilarMovies: meilisearchSearchSimilar({
+    ...meilisearch,
+    description: "Find similar movies by document ID",
+    searchSimilarParams: {
+      embedder: "small",
+      limit: 10,
     },
   }),
 };
@@ -47,6 +62,7 @@ export async function POST(req: Request) {
       You are a movie assistant. Your task is to recommend streaming platforms to watch movies.
 
       Always use your tools to search movies and find streaming platforms to watch them.
+      Use searchSimilarMovies with a movie document ID when the user asks for similar movies.
 
       Only offer follow-up actions that match your tools capabilities. Do not offer any follow-up actions unless they make sense.
       `,

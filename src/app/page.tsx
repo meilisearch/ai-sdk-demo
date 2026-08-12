@@ -79,7 +79,25 @@ function toolQuery(input: unknown) {
   return typeof q === "string" && q.length > 0 ? q : undefined;
 }
 
-function SearchMoviesMarker({ q, output }: { q?: string; output: unknown }) {
+function toolDocumentId(input: unknown) {
+  if (!input || typeof input !== "object") return undefined;
+  const id = (input as { id?: unknown }).id;
+  if (typeof id === "string" && id.length > 0) return id;
+  if (typeof id === "number") return String(id);
+  return undefined;
+}
+
+function pluralize(count: number, singular: string, plural: string) {
+  return count === 1 ? singular : plural;
+}
+
+function SearchMoviesMarker({
+  summary,
+  output,
+}: {
+  summary: (count: number) => string;
+  output: unknown;
+}) {
   const [open, setOpen] = useState(false);
   const hits = movieHits(output);
 
@@ -98,10 +116,7 @@ function SearchMoviesMarker({ q, output }: { q?: string; output: unknown }) {
         <MarkerIcon>
           <SearchIcon />
         </MarkerIcon>
-        <MarkerContent>
-          {hits.length} results found
-          {q ? ` for \u201c${q}\u201d` : ""}
-        </MarkerContent>
+        <MarkerContent>{summary(hits.length)}</MarkerContent>
         <ChevronDownIcon
           className={cn(
             "ml-auto size-4 shrink-0 transition-transform",
@@ -139,6 +154,23 @@ function SearchMoviesMarker({ q, output }: { q?: string; output: unknown }) {
 export default function Home() {
   const { messages, sendMessage, status } = useChat({ transport });
   const [input, setInput] = useState("");
+  const movieTitlesById = new Map<string, string>();
+
+  for (const message of messages) {
+    for (const part of message.parts) {
+      const searchablePart =
+        part.type === "tool-searchMovies" ||
+        part.type === "tool-searchSimilarMovies";
+      if (!searchablePart || part.state !== "output-available") continue;
+
+      const hits = movieHits(part.output);
+      for (const hit of hits) {
+        if (hit.id == null) continue;
+        const key = String(hit.id);
+        if (!movieTitlesById.has(key)) movieTitlesById.set(key, hit.title);
+      }
+    }
+  }
 
   const ready = status === "ready";
   const generating = status === "submitted" || status === "streaming";
@@ -230,7 +262,9 @@ export default function Home() {
                                 return (
                                   <SearchMoviesMarker
                                     key={callId}
-                                    q={q}
+                                    summary={(count) =>
+                                      `${count} ${pluralize(count, "result", "results")} found${q ? ` for \u201c${q}\u201d` : ""}`
+                                    }
                                     output={part.output}
                                   />
                                 );
@@ -259,6 +293,64 @@ export default function Home() {
                                     {q
                                       ? `Searching for \u201c${q}\u201d...`
                                       : "Searching..."}
+                                  </MarkerContent>
+                                </Marker>
+                              );
+                            }
+
+                            if (part.type === "tool-searchSimilarMovies") {
+                              const id = toolDocumentId(part.input);
+                              const callId = part.toolCallId;
+                              const movieTitle = id
+                                ? movieTitlesById.get(id)
+                                : undefined;
+
+                              if (part.state === "output-available") {
+                                const reference = movieTitle
+                                  ? `\u201c${movieTitle}\u201d`
+                                  : id
+                                    ? `movie ID ${id}`
+                                    : "the selected movie";
+                                return (
+                                  <SearchMoviesMarker
+                                    key={callId}
+                                    summary={(count) =>
+                                      `${count} ${pluralize(count, "result", "results")} similar to ${reference}`
+                                    }
+                                    output={part.output}
+                                  />
+                                );
+                              }
+
+                              if (part.state === "output-error") {
+                                return (
+                                  <Marker key={callId} role="status">
+                                    <MarkerIcon>
+                                      <SearchIcon />
+                                    </MarkerIcon>
+                                    <MarkerContent>
+                                      Similar search failed
+                                      {movieTitle
+                                        ? ` for \u201c${movieTitle}\u201d`
+                                        : id
+                                          ? ` for movie ID ${id}`
+                                          : ""}
+                                    </MarkerContent>
+                                  </Marker>
+                                );
+                              }
+
+                              return (
+                                <Marker key={callId} role="status">
+                                  <MarkerIcon>
+                                    <SearchIcon />
+                                  </MarkerIcon>
+                                  <MarkerContent className="shimmer">
+                                    {movieTitle
+                                      ? `Finding movies similar to \u201c${movieTitle}\u201d...`
+                                      : id
+                                        ? `Finding movies similar to movie ID ${id}...`
+                                        : "Finding similar movies..."}
                                   </MarkerContent>
                                 </Marker>
                               );
