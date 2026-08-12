@@ -24,11 +24,11 @@ const tools = {
     indexUid: process.env.MEILISEARCH_INDEX!,
     description: "Search movies by title or description",
     searchParams: {
-      // hybrid: {
-      //   embedder: 'default',
-      //   semanticRatio: 0.5
-      // }
-    }
+      hybrid: {
+        embedder: "small",
+        semanticRatio: 0.5,
+      },
+    },
   }),
 };
 
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openrouter.chat(modelId),
-    system:`
+    system: `
       You are a movie assistant. Your task is to recommend streaming platforms to watch movies.
 
       Always use your tools to search movies and find streaming platforms to watch them.
@@ -58,7 +58,10 @@ export async function POST(req: Request) {
     },
     onToolExecutionEnd({ toolCall, toolOutput }) {
       if (toolOutput.type === "tool-error") {
-        console.error(`[chat] tool ${toolCall.toolName} error`, toolOutput.error);
+        console.error(
+          `[chat] tool ${toolCall.toolName} error`,
+          toolOutput.error,
+        );
         return;
       }
 
