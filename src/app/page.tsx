@@ -1,6 +1,8 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { MarkdownClient } from "@comark/react";
+import breaks from "@comark/react/plugins/breaks";
 import { DefaultChatTransport } from "ai";
 import { SendIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -18,6 +20,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 const transport = new DefaultChatTransport({ api: "/api/chat" });
+
+/** Stable refs — MarkdownClient memoizes parse on content only. */
+const markdownPlugins = [breaks()];
+const markdownComponents = {
+  img: () => null,
+};
 
 export default function Home() {
   const { messages, sendMessage, status } = useChat({ transport });
@@ -44,23 +52,50 @@ export default function Home() {
         <MessageScroller className="flex-1">
           <MessageScrollerViewport>
             <MessageScrollerContent className="p-4">
-              {messages.map((message) => (
-                <MessageScrollerItem
-                  key={message.id}
-                  messageId={message.id}
-                  scrollAnchor={message.role === "user"}
-                >
-                  <Message align={message.role === "user" ? "end" : "start"}>
-                    <MessageContent>
-                      {message.parts.map((part, index) =>
-                        part.type === "text" ? (
-                          <span key={index}>{part.text}</span>
-                        ) : null,
-                      )}
-                    </MessageContent>
-                  </Message>
-                </MessageScrollerItem>
-              ))}
+              {messages.map((message, messageIndex) => {
+                const streaming =
+                  status === "streaming" &&
+                  message.role === "assistant" &&
+                  messageIndex === messages.length - 1;
+
+                return (
+                  <MessageScrollerItem
+                    key={message.id}
+                    messageId={message.id}
+                    scrollAnchor={message.role === "user"}
+                  >
+                    <Message align={message.role === "user" ? "end" : "start"}>
+                      <MessageContent>
+                        {message.parts.map((part, index) => {
+                          if (part.type !== "text") return null;
+
+                          if (message.role === "user") {
+                            return (
+                              <span
+                                key={index}
+                                className="whitespace-pre-wrap"
+                              >
+                                {part.text}
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <MarkdownClient
+                              key={index}
+                              value={part.text}
+                              plugins={markdownPlugins}
+                              components={markdownComponents}
+                              streaming={streaming}
+                              className="[&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                            />
+                          );
+                        })}
+                      </MessageContent>
+                    </Message>
+                  </MessageScrollerItem>
+                );
+              })}
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <MessageScrollerButton />
