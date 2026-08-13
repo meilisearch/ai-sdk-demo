@@ -18,8 +18,8 @@ importers:
         specifier: ^0.6.2
         version: 0.6.2(react@19.2.8)
       '@meilisearch/ai-sdk':
-        specifier: file:../vercel-ai-sdk
-        version: file:../vercel-ai-sdk(ai@7.0.62(zod@4.4.3))(zod@4.4.3)
+        specifier: ^0.1.0
+        version: 0.1.0(ai@7.0.62(zod@4.4.3))(zod@4.4.3)
       '@openrouter/ai-sdk-provider':
         specifier: ^3.0.0
         version: 3.0.0(ai@7.0.62(zod@4.4.3))(zod@4.4.3)
@@ -585,8 +585,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@meilisearch/ai-sdk@file:../vercel-ai-sdk':
-    resolution: {directory: ../vercel-ai-sdk, type: directory}
+  '@meilisearch/ai-sdk@0.1.0':
+    resolution: {integrity: sha512-GR37a3ELkb3Jo0bvW0r8CZXDnDNtBPcfAKvwV8b3PZBJdJztDhqEk7/g2ZjV2SSf73JfX78IXm77bWd5FsoGqQ==}
     peerDependencies:
       ai: ^7.0.50
       zod: ^4.4.3
@@ -3727,7 +3727,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@meilisearch/ai-sdk@file:../vercel-ai-sdk(ai@7.0.62(zod@4.4.3))(zod@4.4.3)':
+  '@meilisearch/ai-sdk@0.1.0(ai@7.0.62(zod@4.4.3))(zod@4.4.3)':
     dependencies:
       ai: 7.0.62(zod@4.4.3)
       meilisearch: 0.60.0
