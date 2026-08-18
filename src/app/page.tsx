@@ -210,11 +210,7 @@ function pluralize(count: number, singular: string, plural: string) {
   return count === 1 ? singular : plural;
 }
 
-function SearchMoviesMarker({
-  summary,
-}: {
-  summary: string;
-}) {
+function SearchMoviesMarker({ summary }: { summary: string }) {
   return (
     <Marker role="status">
       <MarkerIcon>
@@ -274,7 +270,7 @@ export default function Home() {
     <div className="flex h-svh w-full flex-col">
       <MessageScrollerProvider autoScroll>
         <MessageScroller className="flex-1">
-          <MessageScrollerViewport>
+          <MessageScrollerViewport className="@container overflow-x-hidden">
             <MessageScrollerContent className="mx-auto w-full max-w-xl gap-4 p-4">
               {messages.map((message, messageIndex) => {
                 const streaming =
