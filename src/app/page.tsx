@@ -4,9 +4,10 @@ import { useChat } from "@ai-sdk/react";
 import { MarkdownClient } from "@comark/react";
 import breaks from "@comark/react/plugins/breaks";
 import { DefaultChatTransport } from "ai";
-import { ChevronDownIcon, SearchIcon, SendIcon } from "lucide-react";
+import { SearchIcon, SendIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
+import { MovieGrid, type MovieCardHit } from "@/components/movie-card";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/message-scroller";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 
 const transport = new DefaultChatTransport({ api: "/api/chat" });
 
@@ -29,13 +29,19 @@ const transport = new DefaultChatTransport({ api: "/api/chat" });
 const markdownPlugins = [breaks()];
 const markdownComponents = {
   img: () => null,
+  movies: () => null,
 };
 
-type MovieHit = {
-  id?: string | number;
-  title: string;
-  year?: string;
-};
+type MovieHit = MovieCardHit;
+type AssistantSegment =
+  | {
+      type: "text";
+      text: string;
+    }
+  | {
+      type: "movies";
+      ids: string[];
+    };
 
 function releaseYear(releaseDate: unknown) {
   if (typeof releaseDate !== "string" || releaseDate.length < 4) {
@@ -56,10 +62,12 @@ function movieHits(output: unknown): MovieHit[] {
       id,
       title,
       release_date: releaseDate,
+      poster_path: posterPath,
     } = hit as {
       id?: unknown;
       title?: unknown;
       release_date?: unknown;
+      poster_path?: unknown;
     };
     if (typeof title !== "string" || title.length === 0) return [];
 
@@ -68,9 +76,120 @@ function movieHits(output: unknown): MovieHit[] {
         id: typeof id === "string" || typeof id === "number" ? id : undefined,
         title,
         year: releaseYear(releaseDate),
+        posterPath: typeof posterPath === "string" ? posterPath : undefined,
       },
     ];
   });
+}
+
+function unwrapMoviesCodeFence(text: string) {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^```(?:md|mdc|markdown)?\s*([\s\S]*?)\s*```$/i);
+  if (!match) return text;
+  return match[1].includes("::movies") ? match[1] : text;
+}
+
+function stripUnclosedMoviesBlock(text: string) {
+  const openPattern = /(^|\n)[ \t]*::movies(?:\{[^}\n]*\})?[ \t]*\n/g;
+  let lastOpenStart = -1;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = openPattern.exec(text)) !== null) {
+    lastOpenStart = match.index + (match[1]?.length ?? 0);
+  }
+
+  if (lastOpenStart === -1) return text;
+
+  const tail = text.slice(lastOpenStart);
+  const hasClose = /\n[ \t]*::(?=\n|$)/.test(tail);
+  return hasClose ? text : text.slice(0, lastOpenStart).trimEnd();
+}
+
+function parseMovieIds(attributes: string | undefined) {
+  if (!attributes) return [];
+
+  const idsAttributeMatch = attributes.match(
+    /:ids\s*=\s*(?:"([^"]*)"|'([^']*)')/,
+  );
+  const rawIds = idsAttributeMatch?.[1] ?? idsAttributeMatch?.[2];
+
+  if (rawIds) {
+    try {
+      const parsed = JSON.parse(rawIds);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((id) => String(id).trim())
+          .filter((id) => id.length > 0);
+      }
+    } catch {
+      // Fall through to permissive parsing for malformed JSON.
+    }
+
+    return (rawIds.match(/[A-Za-z0-9_-]+/g) ?? []).filter(
+      (id) => id.length > 0,
+    );
+  }
+
+  const permissiveArray = attributes.match(/ids\s*=\s*\[([^\]]+)\]/);
+  if (permissiveArray) {
+    return permissiveArray[1]
+      .split(",")
+      .map((value) => value.trim().replace(/^['"]|['"]$/g, ""))
+      .filter((id) => id.length > 0);
+  }
+
+  return attributes.match(/\d+/g) ?? [];
+}
+
+function splitAssistantText(text: string): AssistantSegment[] {
+  const normalized = unwrapMoviesCodeFence(text);
+  const blockPattern =
+    /(^|\n)[ \t]*::movies(?:\{([^}]*)\})?[ \t]*\n[ \t]*::(?=\n|$)/g;
+  const segments: AssistantSegment[] = [];
+
+  let lastIndex = 0;
+  let match: RegExpExecArray | null = null;
+  while ((match = blockPattern.exec(normalized)) !== null) {
+    const prefixLength = match[1]?.length ?? 0;
+    const blockStart = match.index + prefixLength;
+    const before = normalized.slice(lastIndex, blockStart);
+
+    if (before.length > 0) {
+      segments.push({ type: "text", text: before });
+    }
+
+    segments.push({
+      type: "movies",
+      ids: parseMovieIds(match[2]),
+    });
+
+    lastIndex = blockPattern.lastIndex;
+  }
+
+  const tail = normalized.slice(lastIndex);
+  if (tail.length > 0) {
+    segments.push({ type: "text", text: tail });
+  }
+
+  return segments.length > 0 ? segments : [{ type: "text", text: normalized }];
+}
+
+function resolveMovies(ids: string[], moviesById: Map<string, MovieHit>) {
+  const movies: MovieHit[] = [];
+  const seen = new Set<string>();
+
+  for (const id of ids) {
+    const key = String(id);
+    if (seen.has(key)) continue;
+
+    const movie = moviesById.get(key);
+    if (!movie) continue;
+
+    seen.add(key);
+    movies.push(movie);
+  }
+
+  return movies;
 }
 
 function toolQuery(input: unknown) {
@@ -93,68 +212,23 @@ function pluralize(count: number, singular: string, plural: string) {
 
 function SearchMoviesMarker({
   summary,
-  output,
 }: {
-  summary: (count: number) => string;
-  output: unknown;
+  summary: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const hits = movieHits(output);
-
   return (
-    <div className="w-full min-w-0">
-      <Marker
-        render={
-          <button
-            type="button"
-            className="cursor-pointer p-0"
-            onClick={() => setOpen((value) => !value)}
-          />
-        }
-        aria-expanded={open}
-      >
-        <MarkerIcon>
-          <SearchIcon />
-        </MarkerIcon>
-        <MarkerContent>{summary(hits.length)}</MarkerContent>
-        <ChevronDownIcon
-          className={cn(
-            "ml-auto size-4 shrink-0 transition-transform",
-            open && "rotate-180",
-          )}
-        />
-      </Marker>
-      {open ? (
-        <ol className="border-border/60 text-muted-foreground mt-1 w-full min-w-0 space-y-0.5 rounded-md border p-2 text-xs leading-snug">
-          {hits.map((hit, index) => (
-            <li key={hit.id ?? hit.title} className="flex min-w-0 gap-2">
-              <span className="w-6 shrink-0 text-right whitespace-nowrap tabular-nums">
-                {index + 1}.
-              </span>
-              <span className="min-w-0 truncate">
-                <span className="font-medium">{hit.title}</span>
-                {hit.year ? `, ${hit.year}` : null}
-                {hit.id != null ? (
-                  <>
-                    {" "}
-                    <code className="bg-muted rounded px-1 py-px font-mono text-[0.65rem]">
-                      ID {hit.id}
-                    </code>
-                  </>
-                ) : null}
-              </span>
-            </li>
-          ))}
-        </ol>
-      ) : null}
-    </div>
+    <Marker role="status">
+      <MarkerIcon>
+        <SearchIcon />
+      </MarkerIcon>
+      <MarkerContent>{summary}</MarkerContent>
+    </Marker>
   );
 }
 
 export default function Home() {
   const { messages, sendMessage, status } = useChat({ transport });
   const [input, setInput] = useState("");
-  const movieTitlesById = new Map<string, string>();
+  const moviesById = new Map<string, MovieHit>();
 
   for (const message of messages) {
     for (const part of message.parts) {
@@ -167,7 +241,7 @@ export default function Home() {
       for (const hit of hits) {
         if (hit.id == null) continue;
         const key = String(hit.id);
-        if (!movieTitlesById.has(key)) movieTitlesById.set(key, hit.title);
+        if (!moviesById.has(key)) moviesById.set(key, hit);
       }
     }
   }
@@ -233,24 +307,60 @@ export default function Home() {
                         ) : (
                           message.parts.map((part, index) => {
                             if (part.type === "text") {
-                              if (!part.text.trim()) return null;
+                              const stableText = streaming
+                                ? stripUnclosedMoviesBlock(part.text)
+                                : part.text;
+                              const segments = splitAssistantText(stableText);
+                              const renderedSegments = segments.flatMap(
+                                (segment, segmentIndex) => {
+                                  if (segment.type === "movies") {
+                                    const movies = resolveMovies(
+                                      segment.ids,
+                                      moviesById,
+                                    );
+                                    if (movies.length === 0) return [];
+                                    return [
+                                      <MovieGrid
+                                        key={`${index}-movies-${segmentIndex}`}
+                                        movies={movies}
+                                      />,
+                                    ];
+                                  }
+
+                                  if (!segment.text.trim()) return [];
+
+                                  return [
+                                    <Bubble
+                                      key={`${index}-text-${segmentIndex}`}
+                                      variant="secondary"
+                                      align="start"
+                                    >
+                                      <BubbleContent>
+                                        <MarkdownClient
+                                          value={segment.text}
+                                          plugins={markdownPlugins}
+                                          components={markdownComponents}
+                                          streaming={
+                                            streaming &&
+                                            segmentIndex === segments.length - 1
+                                          }
+                                          className="[&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                                        />
+                                      </BubbleContent>
+                                    </Bubble>,
+                                  ];
+                                },
+                              );
+
+                              if (renderedSegments.length === 0) return null;
 
                               return (
-                                <Bubble
+                                <div
                                   key={index}
-                                  variant="secondary"
-                                  align="start"
+                                  className="flex w-full min-w-0 flex-col gap-2"
                                 >
-                                  <BubbleContent>
-                                    <MarkdownClient
-                                      value={part.text}
-                                      plugins={markdownPlugins}
-                                      components={markdownComponents}
-                                      streaming={streaming}
-                                      className="[&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-                                    />
-                                  </BubbleContent>
-                                </Bubble>
+                                  {renderedSegments}
+                                </div>
                               );
                             }
 
@@ -259,13 +369,11 @@ export default function Home() {
                               const callId = part.toolCallId;
 
                               if (part.state === "output-available") {
+                                const count = movieHits(part.output).length;
                                 return (
                                   <SearchMoviesMarker
                                     key={callId}
-                                    summary={(count) =>
-                                      `${count} ${pluralize(count, "result", "results")} found${q ? ` for \u201c${q}\u201d` : ""}`
-                                    }
-                                    output={part.output}
+                                    summary={`${count} ${pluralize(count, "result", "results")} found${q ? ` for \u201c${q}\u201d` : ""}`}
                                   />
                                 );
                               }
@@ -302,10 +410,11 @@ export default function Home() {
                               const id = toolDocumentId(part.input);
                               const callId = part.toolCallId;
                               const movieTitle = id
-                                ? movieTitlesById.get(id)
+                                ? moviesById.get(id)?.title
                                 : undefined;
 
                               if (part.state === "output-available") {
+                                const count = movieHits(part.output).length;
                                 const reference = movieTitle
                                   ? `\u201c${movieTitle}\u201d`
                                   : id
@@ -314,10 +423,7 @@ export default function Home() {
                                 return (
                                   <SearchMoviesMarker
                                     key={callId}
-                                    summary={(count) =>
-                                      `${count} ${pluralize(count, "result", "results")} similar to ${reference}`
-                                    }
-                                    output={part.output}
+                                    summary={`${count} ${pluralize(count, "result", "results")} similar to ${reference}`}
                                   />
                                 );
                               }

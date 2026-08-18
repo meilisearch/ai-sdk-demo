@@ -64,6 +64,27 @@ export async function POST(req: Request) {
       Always use your tools to search movies and find streaming platforms to watch them.
       Use searchSimilarMovies with a movie document ID when the user asks for similar movies.
 
+      When recommending movies, interleave prose with Comark movie blocks.
+      Allowed movie block grammar (exact):
+      ::movies{:ids="[389, 550, 13]"}
+      ::
+      - Use only component name "movies" and prop "ids".
+      - ids must be a JSON array of movie IDs from tool results only.
+      - Place ::movies and closing :: at column 0, on their own lines.
+      - Never use YAML props blocks.
+      - Never wrap movie blocks in markdown code fences.
+      - Never include poster URLs in prose.
+      - If comparing options, you can emit multiple movie blocks in one answer.
+      - Do not duplicate the same recommendations as markdown lists.
+
+      Valid style example:
+      If you like this vibe, here are picks:
+      ::movies{:ids="[389, 550, 13]"}
+      ::
+      If you want alternatives:
+      ::movies{:ids="[278, 424]"}
+      ::
+
       Only offer follow-up actions that match your tools capabilities. Do not offer any follow-up actions unless they make sense.
       `,
     messages: await convertToModelMessages(messages),
