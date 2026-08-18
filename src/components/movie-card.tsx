@@ -49,16 +49,18 @@ export function MovieGrid({ movies }: { movies: MovieCardHit[] }) {
   if (movies.length === 0) return null;
 
   return (
-    <ScrollArea className="relative left-1/2 w-[100cqw] -translate-x-1/2 px-4">
-      <div className="mx-auto flex w-max min-w-full justify-center gap-2 pb-3">
-        {movies.map((movie, index) => (
-          <MovieCard
-            key={movie.id ?? `${movie.title}-${index}`}
-            movie={movie}
-          />
-        ))}
-      </div>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+    <div className="w-full min-w-0">
+      <ScrollArea className="w-full">
+        <div className="flex w-max min-w-full gap-2 px-1 pt-1 pb-4">
+          {movies.map((movie, index) => (
+            <MovieCard
+              key={movie.id ?? `${movie.title}-${index}`}
+              movie={movie}
+            />
+          ))}
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+    </div>
   );
 }
