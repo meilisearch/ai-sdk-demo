@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { MarkdownClient } from "@comark/react";
 import breaks from "@comark/react/plugins/breaks";
 import { DefaultChatTransport } from "ai";
-import { SearchIcon, SendIcon } from "lucide-react";
+import { ChevronDownIcon, SearchIcon, SendIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { HomeEmptyState } from "@/components/category-grid";
@@ -12,6 +12,12 @@ import { MovieGrid, type MovieCardHit } from "@/components/movie-card";
 import type { CategoryCard } from "@/lib/categories";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { Message, MessageContent } from "@/components/ui/message";
@@ -213,14 +219,54 @@ function pluralize(count: number, singular: string, plural: string) {
   return count === 1 ? singular : plural;
 }
 
-function SearchMoviesMarker({ summary }: { summary: string }) {
+function SearchMoviesMarker({
+  summary,
+  hits,
+}: {
+  summary: string;
+  hits: MovieHit[];
+}) {
   return (
-    <Marker role="status">
-      <MarkerIcon>
-        <SearchIcon />
-      </MarkerIcon>
-      <MarkerContent>{summary}</MarkerContent>
-    </Marker>
+    <Collapsible className="group w-full">
+      <div className="flex items-center gap-1">
+        <Marker role="status" className="min-w-0 flex-1">
+          <MarkerIcon>
+            <SearchIcon />
+          </MarkerIcon>
+          <MarkerContent>{summary}</MarkerContent>
+        </Marker>
+        {hits.length > 0 ? (
+          <CollapsibleTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="text-muted-foreground"
+              />
+            }
+          >
+            <ChevronDownIcon className="transition-transform duration-200 group-data-open:rotate-180" />
+            <span className="sr-only">Show search results</span>
+          </CollapsibleTrigger>
+        ) : null}
+      </div>
+      <CollapsibleContent className="mt-1.5 overflow-hidden">
+        <Card
+          size="sm"
+          className="bg-muted/40 text-muted-foreground ring-foreground/5"
+        >
+          <CardContent>
+            <ol className="list-decimal pl-5">
+              {hits.map((hit, i) => (
+                <li key={hit.id ?? `${hit.title}-${i}`}>
+                  {hit.year ? `${hit.title}, ${hit.year}` : hit.title}
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -396,10 +442,12 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
                                 const callId = part.toolCallId;
 
                                 if (part.state === "output-available") {
-                                  const count = movieHits(part.output).length;
+                                  const hits = movieHits(part.output);
+                                  const count = hits.length;
                                   return (
                                     <SearchMoviesMarker
                                       key={callId}
+                                      hits={hits}
                                       summary={`${count} ${pluralize(count, "result", "results")} found${q ? ` for \u201c${q}\u201d` : ""}`}
                                     />
                                   );
@@ -441,7 +489,8 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
                                   : undefined;
 
                                 if (part.state === "output-available") {
-                                  const count = movieHits(part.output).length;
+                                  const hits = movieHits(part.output);
+                                  const count = hits.length;
                                   const reference = movieTitle
                                     ? `\u201c${movieTitle}\u201d`
                                     : id
@@ -450,6 +499,7 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
                                   return (
                                     <SearchMoviesMarker
                                       key={callId}
+                                      hits={hits}
                                       summary={`${count} ${pluralize(count, "result", "results")} similar to ${reference}`}
                                     />
                                   );
