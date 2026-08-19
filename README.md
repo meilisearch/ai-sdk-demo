@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<p align="center">
+  <a href="https://www.meilisearch.com/?utm_campaign=ai-sdk-demo&utm_source=github&utm_medium=readme" target="_blank">
+    <img src="https://github.com/meilisearch/meilisearch/blob/main/assets/logo.svg" alt="Meilisearch" width="200" height="200" />
+  </a>
+</p>
 
-## Getting Started
+<h1 align="center">Meilisearch AI SDK demo</h1>
 
-First, run the development server:
+<h4 align="center">
+  <a href="https://www.meilisearch.com/?utm_campaign=ai-sdk-demo&utm_source=github&utm_medium=readme">Website</a> |
+  <a href="https://www.meilisearch.com/cloud?utm_campaign=ai-sdk-demo&utm_source=github&utm_medium=readme">Meilisearch Cloud</a> |
+  <a href="https://www.meilisearch.com/blog?utm_campaign=ai-sdk-demo&utm_source=github&utm_medium=readme">Blog</a> |
+  <a href="https://www.meilisearch.com/docs/?utm_campaign=ai-sdk-demo&utm_source=github&utm_medium=readme">Documentation</a> |
+  <a href="https://dub.sh/meili-discord/?utm_campaign=ai-sdk-demo&utm_source=github&utm_medium=readme">Discord</a>
+</h4>
+<br/>
+
+> Meilisearch is an open-source search engine for user-facing search and AI retrieval
+
+## Features
+
+This app uses [`@meilisearch/ai-sdk`](https://github.com/meilisearch/ai-sdk) with the [Vercel AI SDK](https://ai-sdk.dev/) to build a movie recommendation chatbot.
+
+## Setup
+
+### Dependencies
+
+Install the dependencies with PNPM:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create an `.env` file and update it with your credentials.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# .env
 
-## Learn More
+OPENROUTER_API_KEY="use your OpenRouter API key here"
+OPENROUTER_MODEL="openai/gpt-4o-mini"
 
-To learn more about Next.js, take a look at the following resources:
+# You can use the credentials below to use the public movies dataset
+MEILISEARCH_HOST="https://ms-69223ce62f2d-106.lon.meilisearch.io"
+MEILISEARCH_API_KEY="e29f206c5c55fb9a4d0763ccd981b7e76ea2f5ca6fb349275782efa3d19d1427"
+MEILISEARCH_INDEX="movies-en-US"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Running the app
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Start the development server on http://localhost:3000
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm dev
+```
