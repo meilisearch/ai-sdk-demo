@@ -5,7 +5,7 @@ import { MarkdownClient } from "@comark/react";
 import breaks from "@comark/react/plugins/breaks";
 import { DefaultChatTransport } from "ai";
 import { ChevronDownIcon, SearchIcon, SendIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type AnchorHTMLAttributes, type TableHTMLAttributes } from "react";
 
 import { HomeEmptyState } from "@/components/category-grid";
 import { MovieGrid, type MovieCardHit } from "@/components/movie-card";
@@ -36,9 +36,75 @@ const transport = new DefaultChatTransport({ api: "/api/chat" });
 
 /** Stable refs — MarkdownClient memoizes parse on content only. */
 const markdownPlugins = [breaks()];
+
+const markdownClassName = cn(
+  // Block rhythm
+  "[&_p]:mb-3 [&_p:last-child]:mb-0",
+  "[&_p]:whitespace-pre-wrap [&_li]:whitespace-pre-wrap",
+  "[&_ol]:mb-3 [&_ol:last-child]:mb-0 [&_ol]:list-decimal [&_ol]:pl-5",
+  "[&_ul]:mb-3 [&_ul:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5",
+  "[&_ul.contains-task-list]:list-none [&_ul.contains-task-list]:pl-0",
+  "[&_li.task-list-item]:flex [&_li.task-list-item]:items-start [&_li.task-list-item]:gap-2",
+  "[&_li.task-list-item_input]:mt-1",
+  // Headings (scaled for chat bubbles)
+  "[&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:font-semibold [&_h1:first-child]:mt-0",
+  "[&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2:first-child]:mt-0",
+  "[&_h3]:mt-3 [&_h3]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3:first-child]:mt-0",
+  "[&_h4]:mt-3 [&_h4]:mb-1.5 [&_h4]:text-sm [&_h4]:font-medium [&_h4:first-child]:mt-0",
+  "[&_h5]:mt-3 [&_h5]:mb-1.5 [&_h5]:text-sm [&_h5]:font-medium [&_h5:first-child]:mt-0",
+  "[&_h6]:mt-3 [&_h6]:mb-1.5 [&_h6]:text-sm [&_h6]:font-medium [&_h6:first-child]:mt-0",
+  // Inline
+  "[&_a]:font-medium [&_a]:underline [&_a]:underline-offset-3",
+  "[&_del]:text-muted-foreground [&_del]:line-through",
+  "[&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em]",
+  "[&_pre_code]:rounded-none [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-[0.85em]",
+  // Blocks
+  "[&_blockquote]:mb-3 [&_blockquote:last-child]:mb-0 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground",
+  "[&_pre]:mb-3 [&_pre:last-child]:mb-0 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-[0.85em]",
+  "[&_hr]:my-4 [&_hr]:border-border",
+  // Tables (margin handled by MarkdownTable wrapper)
+  "[&_table]:w-full [&_table]:border-collapse [&_table]:text-left",
+  "[&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:px-2 [&_th]:py-1.5 [&_th]:font-medium",
+  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1.5",
+);
+
+function MarkdownLink({
+  href,
+  children,
+  ...props
+}: AnchorHTMLAttributes<HTMLAnchorElement>) {
+  const isExternal =
+    typeof href === "string" && /^(https?:|mailto:|tel:)/i.test(href);
+
+  return (
+    <a
+      href={href}
+      {...props}
+      {...(isExternal
+        ? { target: "_blank", rel: "noopener noreferrer" }
+        : undefined)}
+    >
+      {children}
+    </a>
+  );
+}
+
+function MarkdownTable({
+  children,
+  ...props
+}: TableHTMLAttributes<HTMLTableElement>) {
+  return (
+    <div className="mb-3 w-full max-w-full overflow-x-auto last:mb-0">
+      <table {...props}>{children}</table>
+    </div>
+  );
+}
+
 const markdownComponents = {
   img: () => null,
   movies: () => null,
+  a: MarkdownLink,
+  table: MarkdownTable,
 };
 
 type MovieHit = MovieCardHit;
@@ -417,7 +483,7 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
                                               segmentIndex ===
                                                 segments.length - 1
                                             }
-                                            className="[&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                                            className={markdownClassName}
                                           />
                                         </BubbleContent>
                                       </Bubble>,
