@@ -5,7 +5,12 @@ import { MarkdownClient } from "@comark/react";
 import breaks from "@comark/react/plugins/breaks";
 import { DefaultChatTransport } from "ai";
 import { ChevronDownIcon, SearchIcon, SendIcon } from "lucide-react";
-import { useState, type FormEvent, type AnchorHTMLAttributes, type TableHTMLAttributes } from "react";
+import {
+  useState,
+  type FormEvent,
+  type AnchorHTMLAttributes,
+  type TableHTMLAttributes,
+} from "react";
 
 import { HomeEmptyState } from "@/components/category-grid";
 import { MovieGrid, type MovieCardHit } from "@/components/movie-card";
