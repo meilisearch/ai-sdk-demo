@@ -41,7 +41,7 @@ OPENROUTER_MODEL="openai/gpt-4o-mini"
 
 # You can use the credentials below to use the public movies dataset
 MEILISEARCH_HOST="https://ms-69223ce62f2d-106.lon.meilisearch.io"
-MEILISEARCH_API_KEY="e29f206c5c55fb9a4d0763ccd981b7e76ea2f5ca6fb349275782efa3d19d1427"
+MEILISEARCH_SEARCH_API_KEY="e29f206c5c55fb9a4d0763ccd981b7e76ea2f5ca6fb349275782efa3d19d1427"
 MEILISEARCH_INDEX="movies-en-US"
 ```
 

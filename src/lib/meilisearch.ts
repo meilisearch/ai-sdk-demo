@@ -11,7 +11,7 @@ export function getMeilisearch() {
   return {
     client: new Meilisearch({
       host,
-      apiKey: process.env.MEILISEARCH_API_KEY,
+      apiKey: process.env.MEILISEARCH_SEARCH_API_KEY,
     }),
     indexUid,
   };

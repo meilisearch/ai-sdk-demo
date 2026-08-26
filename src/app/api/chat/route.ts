@@ -22,7 +22,7 @@ const modelId = process.env.OPENROUTER_MODEL!;
 
 const meilisearch = {
   host: process.env.MEILISEARCH_HOST!,
-  apiKey: process.env.MEILISEARCH_API_KEY,
+  apiKey: process.env.MEILISEARCH_SEARCH_API_KEY,
   indexUid: process.env.MEILISEARCH_INDEX!,
 };
 
