@@ -12,11 +12,11 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.54",
     "@ai-sdk/react": "^4.0.65",
     "@base-ui/react": "^1.7.0",
     "@comark/react": "^0.6.2",
     "@meilisearch/ai-sdk": "^0.1.0",
-    "@openrouter/ai-sdk-provider": "^3.0.0",
     "@shadcn/react": "^0.3.0",
     "ai": "^7.0.62",
     "class-variance-authority": "^0.7.1",

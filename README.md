@@ -36,8 +36,8 @@ Create an `.env` file and update it with your credentials.
 ```bash
 # .env
 
-OPENROUTER_API_KEY="use your OpenRouter API key here"
-OPENROUTER_MODEL="openai/gpt-4o-mini"
+ANTHROPIC_API_KEY="use your Anthropic API key here"
+ANTHROPIC_MODEL="claude-sonnet-4-5"
 
 # You can use the credentials below to use the public movies dataset
 MEILISEARCH_HOST="https://ms-69223ce62f2d-106.lon.meilisearch.io"

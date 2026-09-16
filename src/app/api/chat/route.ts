@@ -1,8 +1,8 @@
+import { anthropic } from "@ai-sdk/anthropic";
 import {
   meilisearchSearch,
   meilisearchSearchSimilar,
 } from "@meilisearch/ai-sdk";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -13,12 +13,6 @@ import {
 } from "ai";
 
 export const maxDuration = 30;
-
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
-
-const modelId = process.env.OPENROUTER_MODEL!;
 
 const meilisearch = {
   host: process.env.MEILISEARCH_HOST!,
@@ -64,7 +58,7 @@ export async function POST(req: Request) {
     const { messages }: { messages: UIMessage[] } = await req.json();
 
     const result = streamText({
-      model: openrouter.chat(modelId),
+      model: anthropic(process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5"),
       system: `
       You are a movie assistant. Your task is to recommend streaming platforms to watch movies.
 
