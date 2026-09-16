@@ -4,10 +4,16 @@ import { useChat } from "@ai-sdk/react";
 import { MarkdownClient } from "@comark/react";
 import breaks from "@comark/react/plugins/breaks";
 import { DefaultChatTransport } from "ai";
-import { ChevronDownIcon, SearchIcon, SendIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  CircleAlertIcon,
+  SearchIcon,
+  SendIcon,
+} from "lucide-react";
 import {
   useState,
   type FormEvent,
+  type ReactNode,
   type AnchorHTMLAttributes,
   type TableHTMLAttributes,
 } from "react";
@@ -290,6 +296,31 @@ function pluralize(count: number, singular: string, plural: string) {
   return count === 1 ? singular : plural;
 }
 
+function displayErrorText(text: string | undefined) {
+  const message = text?.trim() ?? "";
+  if (!message || /^<!DOCTYPE/i.test(message) || /^<html/i.test(message)) {
+    return "The request failed.";
+  }
+  return message;
+}
+
+function chatErrorText(error: unknown) {
+  if (error instanceof Error) return displayErrorText(error.message);
+  if (typeof error === "string") return displayErrorText(error);
+  return "The request failed.";
+}
+
+function ChatErrorMarker({ children }: { children: ReactNode }) {
+  return (
+    <Marker role="alert" className="text-destructive">
+      <MarkerIcon>
+        <CircleAlertIcon />
+      </MarkerIcon>
+      <MarkerContent>{children}</MarkerContent>
+    </Marker>
+  );
+}
+
 function SearchMoviesMarker({
   summary,
   hits,
@@ -342,7 +373,7 @@ function SearchMoviesMarker({
 }
 
 export function MovieChat({ categories }: { categories: CategoryCard[] }) {
-  const { messages, sendMessage, status } = useChat({ transport });
+  const { messages, sendMessage, status, error } = useChat({ transport });
   const [input, setInput] = useState("");
   const moviesById = new Map<string, MovieHit>();
 
@@ -363,7 +394,7 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
   }
 
   const empty = messages.length === 0;
-  const ready = status === "ready";
+  const idle = status === "ready" || status === "error";
   const generating = status === "submitted" || status === "streaming";
 
   const lastMessage = messages[messages.length - 1];
@@ -376,14 +407,14 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
 
   function sendText(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || !ready) return;
+    if (!trimmed || !idle) return;
 
     sendMessage({ text: trimmed });
   }
 
   function send() {
     const text = input.trim();
-    if (!text || !ready) return;
+    if (!text || !idle) return;
 
     sendText(text);
     setInput("");
@@ -412,7 +443,7 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
               {empty ? (
                 <HomeEmptyState
                   categories={categories}
-                  disabled={!ready}
+                  disabled={!idle}
                   onSelect={selectGenre}
                 />
               ) : (
@@ -526,15 +557,9 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
 
                                 if (part.state === "output-error") {
                                   return (
-                                    <Marker key={callId} role="status">
-                                      <MarkerIcon>
-                                        <SearchIcon />
-                                      </MarkerIcon>
-                                      <MarkerContent>
-                                        Search failed
-                                        {q ? ` for \u201c${q}\u201d` : ""}
-                                      </MarkerContent>
-                                    </Marker>
+                                    <ChatErrorMarker key={callId}>
+                                      {displayErrorText(part.errorText)}
+                                    </ChatErrorMarker>
                                   );
                                 }
 
@@ -578,19 +603,9 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
 
                                 if (part.state === "output-error") {
                                   return (
-                                    <Marker key={callId} role="status">
-                                      <MarkerIcon>
-                                        <SearchIcon />
-                                      </MarkerIcon>
-                                      <MarkerContent>
-                                        Similar search failed
-                                        {movieTitle
-                                          ? ` for \u201c${movieTitle}\u201d`
-                                          : id
-                                            ? ` for movie ID ${id}`
-                                            : ""}
-                                      </MarkerContent>
-                                    </Marker>
+                                    <ChatErrorMarker key={callId}>
+                                      {displayErrorText(part.errorText)}
+                                    </ChatErrorMarker>
                                   );
                                 }
 
@@ -628,6 +643,10 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
                   <MarkerContent className="shimmer">Thinking...</MarkerContent>
                 </Marker>
               ) : null}
+
+              {error ? (
+                <ChatErrorMarker>{chatErrorText(error)}</ChatErrorMarker>
+              ) : null}
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <MessageScrollerButton />
@@ -644,7 +663,7 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
             onChange={(event) => setInput(event.target.value)}
             placeholder="Ask about movies..."
             rows={1}
-            disabled={!ready}
+            disabled={!idle}
             className="max-h-40 min-h-9 flex-1 resize-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:border-transparent focus-visible:ring-0 disabled:bg-transparent dark:bg-transparent"
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
@@ -657,7 +676,7 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
             type="submit"
             size="icon"
             className="size-9 shrink-0 rounded-full"
-            disabled={!ready || !input.trim()}
+            disabled={!idle || !input.trim()}
           >
             <SendIcon />
             <span className="sr-only">Send</span>

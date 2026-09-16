@@ -53,12 +53,19 @@ function hitCount(output: unknown) {
   return Array.isArray(hits) ? hits.length : 0;
 }
 
-export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json();
+function streamErrorText(error: unknown) {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  return "An error occurred.";
+}
 
-  const result = streamText({
-    model: openrouter.chat(modelId),
-    system: `
+export async function POST(req: Request) {
+  try {
+    const { messages }: { messages: UIMessage[] } = await req.json();
+
+    const result = streamText({
+      model: openrouter.chat(modelId),
+      system: `
       You are a movie assistant. Your task is to recommend streaming platforms to watch movies.
 
       ## Steps
@@ -93,31 +100,37 @@ export async function POST(req: Request) {
       - Do not duplicate the same recommendations in movie blocks as markdown lists.
       - Only offer follow-up actions that match your tools capabilities. Do not offer any follow-up actions unless they make sense.
       `,
-    messages: await convertToModelMessages(messages),
-    tools,
-    stopWhen: stepCountIs(5),
-    onToolExecutionStart({ toolCall }) {
-      console.info(`[chat] tool ${toolCall.toolName}`, toolCall.input);
-    },
-    onToolExecutionEnd({ toolCall, toolOutput }) {
-      if (toolOutput.type === "tool-error") {
-        console.error(
-          `[chat] tool ${toolCall.toolName} error`,
-          toolOutput.error,
+      messages: await convertToModelMessages(messages),
+      tools,
+      stopWhen: stepCountIs(5),
+      onToolExecutionStart({ toolCall }) {
+        console.info(`[chat] tool ${toolCall.toolName}`, toolCall.input);
+      },
+      onToolExecutionEnd({ toolCall, toolOutput }) {
+        if (toolOutput.type === "tool-error") {
+          console.error(
+            `[chat] tool ${toolCall.toolName} error`,
+            toolOutput.error,
+          );
+          return;
+        }
+
+        console.info(
+          `[chat] tool ${toolCall.toolName} → ${hitCount(toolOutput.output)} responses`,
         );
-        return;
-      }
+      },
+      onStepEnd({ text }) {
+        if (text.trim()) console.info("[chat] assistant:", text);
+      },
+    });
 
-      console.info(
-        `[chat] tool ${toolCall.toolName} → ${hitCount(toolOutput.output)} responses`,
-      );
-    },
-    onStepEnd({ text }) {
-      if (text.trim()) console.info("[chat] assistant:", text);
-    },
-  });
-
-  return createUIMessageStreamResponse({
-    stream: toUIMessageStream({ stream: result.stream }),
-  });
+    return createUIMessageStreamResponse({
+      stream: toUIMessageStream({
+        stream: result.stream,
+        onError: streamErrorText,
+      }),
+    });
+  } catch (error) {
+    return new Response(streamErrorText(error), { status: 500 });
+  }
 }
