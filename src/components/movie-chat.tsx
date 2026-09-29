@@ -430,7 +430,7 @@ export function MovieChat({ categories }: { categories: CategoryCard[] }) {
   }
 
   return (
-    <div className="flex h-svh w-full flex-col">
+    <div className="flex min-h-0 w-full flex-1 flex-col">
       <MessageScrollerProvider autoScroll>
         <MessageScroller className="flex-1">
           <MessageScrollerViewport className="@container overflow-x-hidden">
