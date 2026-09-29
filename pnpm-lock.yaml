@@ -26,6 +26,9 @@ importers:
       '@shadcn/react':
         specifier: ^0.3.0
         version: 0.3.0(@types/react@19.2.18)(react@19.2.8)
+      '@twicpics/components':
+        specifier: ^0.33.0
+        version: 0.33.0
       ai:
         specifier: ^7.0.62
         version: 7.0.62(zod@4.4.3)
@@ -822,6 +825,9 @@ packages:
 
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
+
+  '@twicpics/components@0.33.0':
+    resolution: {integrity: sha512-HEvk8gq8Ynr7+bMpu3o1IgugFBglZYlFPr3HBzrEPiuDWZlLVJYMk2IaPiOVzXP8Q0NaX9eRIcZ9vklmdxKo9g==}
 
   '@tybys/wasm-util@0.10.3':
     resolution: {integrity: sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==}
@@ -3931,6 +3937,8 @@ snapshots:
       fast-glob: 3.3.3
       minimatch: 10.2.6
       path-browserify: 1.0.1
+
+  '@twicpics/components@0.33.0': {}
 
   '@tybys/wasm-util@0.10.3':
     dependencies:
