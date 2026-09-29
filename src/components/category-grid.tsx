@@ -1,6 +1,9 @@
 "use client";
 
+import { TwicImg } from "@twicpics/components/react";
+
 import type { CategoryCard } from "@/lib/categories";
+import { CATEGORY_BACKDROP_ASPECT_RATIO, getTwicpicsUrl } from "@/lib/twicpics";
 
 function CategoryCardButton({
   category,
@@ -20,12 +23,10 @@ function CategoryCardButton({
       className="group focus-visible:ring-ring/50 relative aspect-video w-full cursor-pointer overflow-hidden rounded-xl transition hover:scale-[1.03] hover:shadow-lg focus-visible:ring-3 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60"
     >
       {category.backdropUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- TMDB backdrop URLs are not in the Next image loader.
-        <img
-          src={category.backdropUrl}
+        <TwicImg
+          src={getTwicpicsUrl("tmdb", category.backdropUrl)}
+          ratio={CATEGORY_BACKDROP_ASPECT_RATIO}
           alt=""
-          loading="lazy"
-          decoding="async"
           className="bg-muted size-full object-cover transition duration-300 group-hover:scale-105"
         />
       ) : (

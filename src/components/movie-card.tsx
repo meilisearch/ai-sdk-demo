@@ -1,5 +1,7 @@
 "use client";
 
+import { TwicImg } from "@twicpics/components/react";
+
 import {
   Card,
   CardDescription,
@@ -7,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { getTwicpicsUrl, MOVIE_POSTER_ASPECT_RATIO } from "@/lib/twicpics";
 
 export type MovieCardHit = {
   id?: string | number;
@@ -19,13 +22,11 @@ function MovieCard({ movie }: { movie: MovieCardHit }) {
   return (
     <Card size="sm" className="w-36 shrink-0 py-0" aria-label={movie.title}>
       {movie.posterPath ? (
-        // eslint-disable-next-line @next/next/no-img-element -- streamed chat cards should render raw TMDB poster URLs.
-        <img
-          src={movie.posterPath}
+        <TwicImg
+          src={getTwicpicsUrl("tmdb", movie.posterPath)}
+          ratio={MOVIE_POSTER_ASPECT_RATIO}
           alt={movie.title}
-          loading="lazy"
-          decoding="async"
-          className="bg-muted aspect-[2/3] w-full object-cover"
+          className="w-full object-cover"
         />
       ) : (
         <div className="bg-muted text-muted-foreground flex aspect-[2/3] w-full items-center justify-center rounded-t-xl px-2 text-center text-xs leading-tight font-medium">
